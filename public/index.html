@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do Listesi</title>
+    <style>
+        html, body{
+	    min-height: 100%;
+        }
+        body {
+            background-image: url('asdf.jpg');
+            background-repeat: no-repeat;
+            background-size: cover;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            
+        }
+        h1{
+            text-align:center;
+            background-color: #efb1e4;
+            border-radius: 15px;
+        }
+
+        button{
+            margin-left: 10px;
+            background-color: #eff9a1;
+            color: rgb(197, 181, 181);
+            padding: 10px 10px;
+            border: none;
+            border-radius: 10px;
+            width: 35%;
+            
+        }
+        .todo{
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        .a{
+            margin-top: 20px;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            border: 5px;
+        }
+        li {
+      background-color: #f1f0f0;
+      border-radius: 5px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      max-width: 70%;
+      word-wrap: break-word;
+        }
+        .tamamlandi{
+            text-decoration: line-through;
+        }
+
+    </style>
+    <script src="https://unpkg.com/vue"></script>
+</head>
+<body>
+    <div id="app" class="todo">
+        <h1>TO DO LIST</h1>
+
+        <ul>
+            <li v-for="(gorev, index) in gorevler" :key="index" >
+                <input type="checkbox" @change="gorevGuncelle(gorev)" v-model="gorev.completed">
+                <input type="text" v-model="gorev.mission" v-if="isUpdateId == gorev._id">
+                <span :class="{tamamlandi: gorev.completed} " v-else>{{gorev.mission}}</span>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button class="btn btn-primary me-md-2" type="button" @click="gorevSil(gorev)">Sil</button>
+                <button class="btn btn-primary" type="button" @click="gorevAdiDegistir(gorev)">Güncelle</button>
+                </div>
+            </li>
+        </ul>
+        <input class="a" v-model="yeniGorev" placeholder="Yeni görev ekle" @keyup.enter="gorevEkle">
+        <button @click="gorevEkle">Ekle</button>
+    </div>
+</body>
+<script>
+    const { createApp, reactive, ref, onMounted } = Vue;
+    const URL = 'http://localhost:3000';
+
+
+    createApp({
+        setup(){
+            const gorevler = ref([]);
+            const yeniGorev = ref('');
+            const isUpdateId = ref(0)
+
+            const gorevEkle = () => {
+                if (yeniGorev.value.trim()){
+                    fetch(`${URL}/gorev/`, {body: JSON.stringify({mission: yeniGorev.value, completed: false}), method: "POST", headers: {"Content-Type": "application/json"}})
+
+                    .then(response => response.json())
+                    .then(data => {
+                        gorevler.value.push (data);
+                        yeniGorev.value ='';
+                    })
+                    .catch(error => console.error('Error fetching items:', error));
+                }
+            }
+
+            
+            const gorevleriGetir = () => {
+                fetch(`${URL}/gorev`)
+                    .then(response => response.json())
+                    .then(data => {
+                        gorevler.value = data
+                    })
+                    .catch(error => console.error('Error fetching items:', error));
+            };
+
+
+
+
+            const gorevSil = async (gorev) => {
+                if(confirm('Bu görevi silmek istediğinizden emin misiniz?')){
+                    fetch(`${URL}/gorev/${gorev._id}`, {method: "DELETE"})
+                    .then(result => {
+                        gorevleriGetir();
+                    })
+                    .catch(error => console.error('Error:', error));                    
+                }
+
+            }
+
+            const gorevAdiDegistir = async(gorev) => {
+                if(isUpdateId.value){
+                    //let gorevAdi = prompt("Lütfen görev adını giriniz", gorev.mission)
+                    //if (gorevAdi != null) {
+                        fetch(`${URL}/gorev/${gorev._id}`, {body: JSON.stringify({mission: gorev.mission, completed: gorev.completed}), method: "PUT", headers: {"Content-Type": "application/json"}})
+                        .then(result => {
+                            gorevleriGetir();
+                            isUpdateId.value = 0
+                        })
+                        .catch(error => console.error('Error:', error));
+                    //}
+                    
+                }else{
+                    isUpdateId.value = gorev._id
+                }
+
+            }
+
+            
+            const gorevGuncelle = async (gorev) => {
+                const body = {mission: gorev.mission, completed: gorev.completed}
+                fetch(`${URL}/gorev/${gorev._id}`, {body: JSON.stringify(body), method: "PUT", headers: {"Content-Type": "application/json"}})
+                .then(result => {
+                    gorevleriGetir();
+                 })
+                .catch(error => console.error('Error:', error));
+            }
+
+            onMounted(() => {
+                gorevleriGetir()
+            })
+
+
+            return{
+                gorevler,
+                gorevEkle,
+                yeniGorev,
+                gorevSil,
+                gorevGuncelle,
+                gorevAdiDegistir,
+                isUpdateId
+            }
+
+        }
+    }).mount("#app")
+</script>
+</html>    
